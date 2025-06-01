@@ -1,5 +1,7 @@
 using System;
+using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class PlayerMovement : MonoBehaviour
 {
@@ -8,6 +10,12 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private LayerMask wallLayer;
     [SerializeField] private float speed;
     [SerializeField] private float jump;
+    [SerializeField] private float coyoteTime;
+    [SerializeField] private float coyoteCounter;
+    [SerializeField] private int extraJumps;
+    [SerializeField] private float wallJumpX;
+    [SerializeField] private float wallJumpY;
+    private int jumpCounter;
     private Animator anim;
     private BoxCollider2D BoxCollider;
     private float wallJumpCooldown;
@@ -42,54 +50,81 @@ public class PlayerMovement : MonoBehaviour
         anim.SetBool("run", horizontalInput != 0);
         anim.SetBool("grounded", IsGroundet());
 
-
-        //Wall jump logic
-        if (wallJumpCooldown > 0.2f)
+        //jump
+        if (Input.GetKeyDown(KeyCode.W))
         {
-            body.linearVelocity = new Vector2(horizontalInput * speed, body.linearVelocity.y);
+            Jump();
+        }
 
-            if (OnWall() && !IsGroundet())
-            {
-                body.gravityScale = 0;
-                body.linearVelocity = Vector2.zero;
-            }
-            else
-            {
-                body.gravityScale = 7;
-            }
+        //Jump hight Adj
+        if (Input.GetKeyUp(KeyCode.Space) && body.linearVelocity.y > 0)
+        {
+            body.linearVelocity = new Vector2(body.linearVelocity.x, body.linearVelocity.y / 2);
+        }
 
-            if (Input.GetKey(KeyCode.Space))
-            {
-                Jump();
-            }
-
+        if (OnWall())
+        {
+            body.gravityScale = 0;
+            body.linearVelocity = Vector2.zero;
         }
         else
         {
-            wallJumpCooldown += Time.deltaTime;
+            body.gravityScale = 7;
+            body.linearVelocity = new Vector2(horizontalInput * speed, body.linearVelocity.y);
+
+            if (IsGroundet())
+            {
+                coyoteCounter = coyoteTime;
+                jumpCounter = extraJumps;
+            }
+            else
+            {
+                coyoteCounter -= Time.deltaTime;
+            }
         }
     }
 
     private void Jump()
     {
-        if (IsGroundet())
+        if (coyoteCounter <= 0 && !OnWall() && jumpCounter <= 0)
         {
-            body.linearVelocity = new Vector2(body.linearVelocity.x, jump);
-            anim.SetTrigger("jump");
+            return;
         }
-        else if (OnWall() && !IsGroundet())
+
+        if (OnWall())
         {
-            if(horizontalInput == 0)
+            WallJump();
+        }
+        else
+        {
+            if (IsGroundet())
             {
-                body.linearVelocity = new Vector2(-Mathf.Sign(transform.localScale.x) * 10, 0);
-                transform.localScale = new Vector3(-Mathf.Sign(transform.localScale.x), transform.localScale.y, transform.localScale.z);
+                body.linearVelocity = new Vector2(body.linearVelocity.x, jump);
             }
             else
             {
-                body.linearVelocity = new Vector2(-Mathf.Sign(transform.localScale.x) * 3, 6);
+                if(coyoteCounter > 0)
+                {
+                    body.linearVelocity = new Vector2(body.linearVelocity.x, jump);
+                }
+                else
+                {
+                    if(jumpCounter > 0)
+                    {
+                        body.linearVelocity = new Vector2(body.linearVelocity.x, jump);
+                        jumpCounter--;
+                    }
+                }
             }
-            wallJumpCooldown = 0;
+
+            coyoteCounter = 0;
         }
+    }
+
+    private void WallJump()
+    {
+        body.AddForce(new Vector2(-Mathf.Sign(transform.localScale.x) * wallJumpX, wallJumpY));
+        wallJumpCooldown = 0;
     }
 
     private bool IsGroundet()
@@ -106,5 +141,10 @@ public class PlayerMovement : MonoBehaviour
     public bool canAttack()
     {
         return horizontalInput == 0 && IsGroundet() && !OnWall();
+    }
+
+    private void restartLevel()
+    {
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 }
