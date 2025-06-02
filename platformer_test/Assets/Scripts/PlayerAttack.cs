@@ -18,12 +18,15 @@ public class PlayerAttack : MonoBehaviour
 
     private void Update()
     {
-        if (Input.GetKey(KeyCode.LeftControl) && cooldownTimer > attacColldown && playerMovement.canAttack())
+        if (!PauseMenu.isPaused)
         {
-            Attack();
-        }
+            if (Input.GetKey(KeyCode.LeftControl) && cooldownTimer > attacColldown && playerMovement.canAttack())
+            {
+                Attack();
+            }
 
-        cooldownTimer += Time.deltaTime;
+            cooldownTimer += Time.deltaTime;
+        }
     }
 
     private void Attack()
